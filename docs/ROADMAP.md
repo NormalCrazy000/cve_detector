@@ -196,10 +196,10 @@ cve_detector/
 - [ ] First commit and push; enable secret scanning, push protection, Dependabot, private vulnerability reporting on GitHub.
 
 ### Phase 1 — Backend skeleton
-- [ ] `backend/` with `uv` (or Poetry), FastAPI app, `/api/health`.
-- [ ] Settings via `pydantic-settings` (env vars, `.env` for local dev).
-- [ ] SQLAlchemy models from section 2 + first Alembic migration.
-- [ ] Tooling: ruff, mypy (strict), pytest, coverage.
+- [x] `backend/` with `uv` (or Poetry), FastAPI app, `/api/health`.
+- [x] Settings via `pydantic-settings` (env vars, `.env` for local dev).
+- [x] SQLAlchemy models from section 2 + first Alembic migration.
+- [x] Tooling: ruff, mypy (strict), pytest, coverage.
 
 ### Phase 2 — Ecosystems & catalog
 - [ ] `Ecosystem` interface: `normalize_name`, `parse_version`, `parse_range`, `parse_manifest`.
