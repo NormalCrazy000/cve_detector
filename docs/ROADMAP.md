@@ -148,7 +148,7 @@ Do these **before the first commit**.
   - **EPSS** (when added) — cite FIRST.org as requested by their usage terms.
   - **NVD** (if ever added) — mandatory notice: *"This product uses the NVD API but is not endorsed or certified by the NVD."*
 - [ ] README disclaimer: provided "as is", no guarantee of completeness; absence of findings ≠ absence of vulnerabilities.
-- [x] `CONTRIBUTING.md` stating contributions are accepted under MIT (inbound = outbound).
+- [x] No external contributions accepted for now (no `CONTRIBUTING.md`); if this changes, add one stating contributions are accepted under MIT (inbound = outbound).
 
 ---
 
@@ -186,7 +186,6 @@ cve_detector/
 ├── LICENSE
 ├── README.md
 ├── SECURITY.md
-├── CONTRIBUTING.md
 └── THIRD_PARTY_NOTICES.md
 ```
 
@@ -196,7 +195,7 @@ cve_detector/
 
 ### Phase 0 — Repository bootstrap
 - [x] Fix git identity (section 3) and verify.
-- [x] Add `LICENSE`, `.gitignore`, `README.md` skeleton, `SECURITY.md`, `CONTRIBUTING.md`.
+- [x] Add `LICENSE`, `.gitignore`, `README.md` skeleton, `SECURITY.md`.
 - [x] Add `.pre-commit-config.yaml`: gitleaks, ruff, ruff-format, prettier, end-of-file fixer.
 - [x] First commit and push; enable secret scanning, push protection, Dependabot, private vulnerability reporting on GitHub.
 

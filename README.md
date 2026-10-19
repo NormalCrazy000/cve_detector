@@ -25,6 +25,12 @@ pre-commit install
 
 Never commit real configuration: use `.env.example` as a template for your local `.env`.
 
+## Contributions
+
+This is a personal project and external contributions (pull requests) are not
+accepted at the moment. Bug reports are welcome as issues; security problems go
+through [SECURITY.md](SECURITY.md).
+
 ## Data sources & attribution
 
 Vulnerability data is provided by [OSV.dev](https://osv.dev), which aggregates
