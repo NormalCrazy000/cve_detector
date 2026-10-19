@@ -10,7 +10,6 @@ from xml.etree.ElementTree import Element, ParseError
 
 from defusedxml import DefusedXmlException
 from defusedxml.ElementTree import fromstring
-from univers.version_range import MavenVersionRange, VersionRange
 from univers.versions import MavenVersion, Version
 
 from cve_detector.db.enums import DependencyScope, DependencySource, Ecosystem
@@ -25,13 +24,14 @@ from cve_detector.ecosystems.base import (
     VersionSpec,
     merge_duplicates,
 )
+from cve_detector.ecosystems.intervals import Interval, union
 
 _ID = r"[A-Za-z0-9_.-]+"
 _NAME_RE = re.compile(rf"^{_ID}:{_ID}$")
 _VERSION_RE = re.compile(r"^[A-Za-z0-9_.+-]+$")
 _RANGE_RE = re.compile(r"^[\[(][^\[\]()]*[\])](?:,[\[(][^\[\]()]*[\])])*$")
-_RESTRICTION_RE = re.compile(r"[\[(]([^\[\]()]*)[\])]")
-_BOUND_RE = re.compile(r"[^\[\](),]+")
+# One restriction of a range: "[1.0,2.0)", "(,1.0]", "[1.5]".
+_RESTRICTION_RE = re.compile(r"([\[(])([^,\[\]()]*)(,?)([^,\[\]()]*)([\])])")
 _PROPERTY_RE = re.compile(r"\$\{([^}]+)\}")
 _MAX_PROPERTY_DEPTH = 10
 
@@ -71,27 +71,38 @@ class MavenHandler(EcosystemHandler):
             # A plain version is a "soft requirement": the version Maven actually uses.
             self.parse_version(text)
             return VersionSpec(text, is_exact=True)
-        if not _RANGE_RE.match(text) or not all(
-            _VERSION_RE.match(bound) for bound in _BOUND_RE.findall(text)
-        ):
+        if not _RANGE_RE.match(text):
             raise InvalidVersionSpecError(f"invalid Maven version range: {text!r}")
-        if any(r.strip(",") == "" for r in _RESTRICTION_RE.findall(text)):
-            raise InvalidVersionSpecError(f"Maven version range without bounds: {text!r}")
         if text.startswith("[") and text.endswith("]") and "," not in text:
             pinned = text[1:-1]
             self.parse_version(pinned)
             return VersionSpec(pinned, is_exact=True)
         spec = VersionSpec(text, is_exact=False)
-        self.parse_range(spec)
+        self.spec_intervals(spec)
         return spec
 
-    def parse_range(self, spec: VersionSpec) -> VersionRange:
-        native = f"[{spec.text}]" if spec.is_exact else spec.text
-        try:
-            version_range: VersionRange = MavenVersionRange.from_native(native)  # type: ignore[no-untyped-call]
-        except Exception as exc:
-            raise InvalidVersionSpecError(f"invalid Maven version range: {spec.text!r}") from exc
-        return version_range
+    def spec_intervals(self, spec: VersionSpec) -> list[Interval]:
+        if spec.is_exact:
+            return [Interval.point(self.parse_version(spec.text))]
+        intervals = []
+        for opening, low, comma, high, closing in _RESTRICTION_RE.findall(spec.text):
+            if not comma:  # "[1.5]"
+                if (opening, closing) != ("[", "]") or not low:
+                    raise InvalidVersionSpecError(f"invalid Maven version range: {spec.text!r}")
+                intervals.append(Interval.point(self.parse_version(low)))
+                continue
+            if not low and not high:
+                raise InvalidVersionSpecError(f"Maven version range without bounds: {spec.text!r}")
+            interval = Interval(
+                self.parse_version(low) if low else None,
+                self.parse_version(high) if high else None,
+                lower_inclusive=opening == "[",
+                upper_inclusive=closing == "]",
+            )
+            if interval.is_empty():
+                raise InvalidVersionSpecError(f"empty Maven version range: {spec.text!r}")
+            intervals.append(interval)
+        return union(intervals)
 
     def manifest_parsers(self) -> dict[DependencySource, ManifestParser]:
         return {

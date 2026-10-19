@@ -33,13 +33,17 @@ a usable v1. Tick the boxes as work progresses.
 
 | Topic | Decision |
 |-------|----------|
-| Backend | Python 3.12+, FastAPI, SQLAlchemy 2 + Alembic, APScheduler, httpx |
+| Backend | Python 3.12+, FastAPI, SQLAlchemy 2 + Alembic, APScheduler, httpx2 |
 | Frontend | SvelteKit (TypeScript), built with `adapter-static` and served by FastAPI → **one container** |
 | Storage | SQLite on a Docker volume (`/data`) |
 | Version matching | [`univers`](https://github.com/aboutcode-org/univers) (Apache-2.0) for Maven/npm version and range semantics |
 | Runtime | Long-running container with an internal scheduler, started with `docker compose up -d` |
 | Images | Multi-arch (`linux/amd64`, `linux/arm64`), published to GHCR on tagged releases |
 | CI | GitHub Actions: lint, type-check, tests, frontend build, gitleaks, dependency license check, CodeQL, Dependabot |
+| Advisory fetching | OSV `querybatch` (package only) lists advisory ids + `modified` for all libraries in one call; details (`/v1/vulns/{id}`) are downloaded only when new or changed. Matching is done locally for exact versions and ranges alike. |
+| Range evaluation | Interval arithmetic between the dependency spec and the advisory's affected ranges (no registry calls): all allowed versions affected → `affected`, some → `potentially_affected`. Unevaluable ranges → `potentially_affected`. |
+| Severity | Highest among all CVSS vectors (v2, v3.x, v4.0) and database labels (e.g. GitHub `MODERATE`). Advisories without any severity (`unknown`) always pass the project threshold. |
+| CVSS | Own implementation of v2 and v3.x; v4.0 ported from the FIRST reference calculator (BSD-2-Clause), verified against it on 20,000 random vectors. |
 | License | **MIT** |
 | Language | Everything in the repo in **English** |
 
@@ -137,7 +141,7 @@ Do these **before the first commit**.
 - [ ] Dependency license policy: allow MIT, BSD, Apache-2.0, ISC, MPL-2.0, PSF; fail CI on GPL/AGPL/unknown in shipped dependencies.
   - Python: `pip-licenses --fail-on ...`
   - npm: `license-checker --onlyAllow ...`
-- [ ] `THIRD_PARTY_NOTICES.md` generated from the above (required by Apache-2.0 deps such as `univers`).
+- [ ] `THIRD_PARTY_NOTICES.md` generated from the above (required by Apache-2.0 deps such as `univers`), plus the BSD-2-Clause notice of the FIRST CVSS v4 calculator ported in `cvss/`.
 - [ ] Data attribution in README and in the UI footer:
   - **OSV.dev** — data aggregated from several sources; most are CC-BY 4.0 (e.g. GitHub Advisory Database). Credit OSV and link to the advisory source.
   - **CISA KEV** — public US government data; cite the source.
@@ -212,16 +216,18 @@ cve_detector/
 - [x] Unit tests with synthetic manifests.
 
 ### Phase 3 — Vulnerability source (OSV)
-- [ ] `VulnSource` interface: `fetch(libraries) -> advisories`.
-- [ ] OSV client: `POST /v1/querybatch` for exact versions, `POST /v1/query` (package only) for ranges, `GET /v1/vulns/{id}` for details; pagination, retries, timeouts.
-- [ ] Severity normalization: parse CVSS v3/v4 vectors to score + label; fall back to `database_specific.severity`.
-- [ ] Local range evaluation → `affected` / `potentially_affected`.
-- [ ] Tests with recorded OSV responses (no network in CI).
+- [x] `VulnSource` interface: `list_advisories(packages) -> ids + modified`, `fetch_advisories(ids) -> advisories`.
+- [x] OSV client: `POST /v1/querybatch` (package-only queries, batches of 500, per-query pagination), `GET /v1/vulns/{id}` in parallel (configurable workers); retries with backoff on network errors, 429 (honouring `Retry-After`) and 5xx; timeouts.
+- [x] Advisory sync: only new or modified advisories are downloaded and upserted.
+- [x] Severity normalization: CVSS v2/v3.x/v4.0 vectors → score + label, plus database labels; the highest wins.
+- [x] Local range evaluation with version intervals → `affected` / `potentially_affected`. Verified against OSV server-side matching on real packages (npm and Maven).
+- [x] Tests with synthetic OSV responses (no network in CI); CVSS v4 tests use reference scores from the FIRST calculator.
 
 ### Phase 4 — Scan engine & diff
 - [ ] Scan service: collect due projects → unique libraries → query → upsert advisories → compute findings.
 - [ ] Diff engine: new / updated / resolved findings, content hash per finding.
-- [ ] Apply per-project severity threshold and active suppressions; flag suppressions about to expire.
+- [ ] Apply per-project severity threshold (`unknown` severity always passes) and active suppressions; flag suppressions about to expire.
+- [ ] Withdrawn advisories close their findings.
 - [ ] Per-project dependency scope filter (e.g. ignore `development` dependencies; default: include all).
 - [ ] Scheduler: tick every few minutes, run projects whose `next_scan_at` is due; lock to avoid overlapping runs.
 - [ ] Manual "scan now" endpoint.

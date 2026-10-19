@@ -45,7 +45,9 @@ def test_parse_spec(text: str, canonical: str, is_exact: bool) -> None:
     assert (spec.text, spec.is_exact) == (canonical, is_exact)
 
 
-@pytest.mark.parametrize("text", ["latest", ">>1", "1.2.3.4", "^a", "1 - 2", "<=>1"])
+@pytest.mark.parametrize(
+    "text", ["latest", ">>1", "1.2.3.4", "^a", "1 - 2", "<=>1", ">2.0.0 <1.0.0"]
+)
 def test_invalid_specs(text: str) -> None:
     with pytest.raises(InvalidVersionSpecError):
         npm.parse_spec(text)
@@ -82,11 +84,15 @@ def test_parse_version_requires_a_full_version(text: str) -> None:
     ],
 )
 def test_range_containment(spec: str, inside: list[str], outside: list[str]) -> None:
-    version_range = npm.parse_range(npm.parse_spec(spec))
+    intervals = npm.spec_intervals(npm.parse_spec(spec))
+
+    def allowed(version: str) -> bool:
+        return any(i.contains(npm.parse_version(version)) for i in intervals)
+
     for version in inside:
-        assert npm.parse_version(version) in version_range, version
+        assert allowed(version), version
     for version in outside:
-        assert npm.parse_version(version) not in version_range, version
+        assert not allowed(version), version
 
 
 def test_package_json() -> None:

@@ -4,7 +4,7 @@ import json
 import re
 from typing import Any
 
-from univers.version_range import NpmVersionRange, VersionRange
+from univers.version_range import NpmVersionRange
 from univers.versions import SemverVersion, Version
 
 from cve_detector.db.enums import DependencyScope, DependencySource, Ecosystem
@@ -19,6 +19,7 @@ from cve_detector.ecosystems.base import (
     VersionSpec,
     merge_duplicates,
 )
+from cve_detector.ecosystems.intervals import Interval, intersection, union
 
 # Old packages may contain uppercase letters, so the check is case-insensitive.
 _NAME_RE = re.compile(r"^(?:@[a-z0-9][a-z0-9._~-]*/)?[a-z0-9~-][a-z0-9._~-]*$", re.IGNORECASE)
@@ -70,16 +71,25 @@ class NpmHandler(EcosystemHandler):
         if _EXACT_RE.match(exact):
             return VersionSpec(exact.removeprefix("v"), is_exact=True)
         spec = VersionSpec(text or "*", is_exact=False)
-        self.parse_range(spec)
+        if not self.spec_intervals(spec):
+            raise InvalidVersionSpecError(f"npm version range matches no version: {text!r}")
         return spec
 
-    def parse_range(self, spec: VersionSpec) -> VersionRange:
-        native = spec.text if spec.is_exact else _to_univers(spec.text)
-        try:
-            version_range: VersionRange = NpmVersionRange.from_native(native)  # type: ignore[no-untyped-call]
-        except Exception as exc:
-            raise InvalidVersionSpecError(f"invalid npm version range: {spec.text!r}") from exc
-        return version_range
+    def spec_intervals(self, spec: VersionSpec) -> list[Interval]:
+        if spec.is_exact:
+            return [Interval.point(self.parse_version(spec.text))]
+        intervals = []
+        for alternative in _to_univers(spec.text).split("||"):
+            try:
+                parsed = NpmVersionRange.from_native(alternative.strip())  # type: ignore[no-untyped-call]
+            except Exception as exc:
+                raise InvalidVersionSpecError(f"invalid npm version range: {spec.text!r}") from exc
+            # Comparators of one alternative must all hold: intersect them.
+            interval = Interval()
+            for constraint in parsed.constraints:
+                interval = intersection(interval, _constraint_interval(constraint))
+            intervals.append(interval)
+        return union(intervals)
 
     def manifest_parsers(self) -> dict[DependencySource, ManifestParser]:
         return {
@@ -230,6 +240,19 @@ def _comparator(token: str, text: str) -> str:
         fixed[-1] += 1
         op = ">=" if op == ">" else "<"
     return op + ".".join(map(str, fixed + [0] * (3 - loose)))
+
+
+def _constraint_interval(constraint: Any) -> Interval:
+    version, comparator = constraint.version, constraint.comparator
+    match comparator:
+        case "=":
+            return Interval.point(version)
+        case ">" | ">=":
+            return Interval(lower=version, lower_inclusive=comparator == ">=")
+        case "<" | "<=":
+            return Interval(upper=version, upper_inclusive=comparator == "<=")
+        case _:  # "*"
+            return Interval()
 
 
 def _is_github_shorthand(spec: str) -> bool:

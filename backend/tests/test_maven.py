@@ -42,7 +42,8 @@ def test_parse_spec(text: str, canonical: str, is_exact: bool) -> None:
 
 
 @pytest.mark.parametrize(
-    "text", ["", "${lib.version}", "[1.0", "[1.0,2.0", "[,]", "(1.0)", "[2.0,1.0)", "1.0]"]
+    "text",
+    ["", "${lib.version}", "[1.0", "[1.0,2.0", "[,]", "(1.0)", "[2.0,1.0)", "1.0]", "(1.0,1.0)"],
 )
 def test_invalid_specs(text: str) -> None:
     with pytest.raises(InvalidVersionSpecError):
@@ -59,11 +60,15 @@ def test_invalid_specs(text: str) -> None:
     ],
 )
 def test_range_containment(spec: str, inside: list[str], outside: list[str]) -> None:
-    version_range = maven.parse_range(maven.parse_spec(spec))
+    intervals = maven.spec_intervals(maven.parse_spec(spec))
+
+    def allowed(version: str) -> bool:
+        return any(i.contains(maven.parse_version(version)) for i in intervals)
+
     for version in inside:
-        assert maven.parse_version(version) in version_range, version
+        assert allowed(version), version
     for version in outside:
-        assert maven.parse_version(version) not in version_range, version
+        assert not allowed(version), version
 
 
 def test_pom() -> None:

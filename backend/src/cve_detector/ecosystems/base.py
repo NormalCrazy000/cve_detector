@@ -4,10 +4,10 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field, replace
 
-from univers.version_range import VersionRange
 from univers.versions import Version
 
 from cve_detector.db.enums import DependencyScope, DependencySource, Ecosystem
+from cve_detector.ecosystems.intervals import Interval
 
 
 class InvalidPackageNameError(ValueError):
@@ -78,8 +78,8 @@ class EcosystemHandler(ABC):
         """
 
     @abstractmethod
-    def parse_range(self, spec: VersionSpec) -> VersionRange:
-        """Turn a validated spec into a range usable for containment checks."""
+    def spec_intervals(self, spec: VersionSpec) -> list[Interval]:
+        """The versions allowed by a validated spec, as sorted disjoint intervals."""
 
     @abstractmethod
     def manifest_parsers(self) -> dict[DependencySource, ManifestParser]:

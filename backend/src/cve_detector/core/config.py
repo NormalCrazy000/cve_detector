@@ -37,6 +37,11 @@ class Settings(BaseSettings):
     smtp_password: SecretStr | None = None
     smtp_from: str | None = None
 
+    osv_api_url: str = "https://api.osv.dev"
+    http_timeout_seconds: float = 30.0
+    # Parallel downloads of advisory details; keep it low to be polite to OSV.
+    osv_max_workers: int = 4
+
     @property
     def sqlalchemy_url(self) -> str:
         if self.database_url:
