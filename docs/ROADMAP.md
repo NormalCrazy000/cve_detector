@@ -83,7 +83,8 @@ a usable v1. Tick the boxes as work progresses.
 - **Project**: name, description, scan interval, min severity, all-clear policy (`never|every_run|daily|weekly`), last/next scan.
 - **Recipient**: project → email address (and later: channel type + target).
 - **Library** (shared catalog, unique on `ecosystem + name`): e.g. `Maven / org.apache.logging.log4j:log4j-core`, `npm / lodash`.
-- **Dependency**: project → library + `version_spec` + `is_exact` + source (`manual|pom.xml|package.json|package-lock.json`).
+- **Dependency**: project → library + `version_spec` + `is_exact` + source (`manual|pom.xml|package.json|package-lock.json|mvn-dependency-list`)
+  + scope (`runtime|provided|optional|development`, normalized across ecosystems) + `is_direct` (unknown for `mvn dependency:list`).
 - **Advisory**: OSV id, aliases (CVE ids, GHSA ids), summary, severity / CVSS vector + score, affected ranges, fixed versions, `published`, `modified`, `withdrawn`, raw JSON.
 - **Finding**: dependency × advisory, status (`affected|potentially_affected|fixed|suppressed`), first seen, last seen, last notified hash.
 - **Suppression**: advisory id, optional project scope, reason, created by, expires at.
@@ -114,12 +115,12 @@ Do these **before the first commit**.
   git config user.name  "NormalCrazy000"
   git config user.email "<ID>+NormalCrazy000@users.noreply.github.com"
   ```
-- [ ] GitHub → Settings → Emails: enable **Keep my email addresses private** and **Block command line pushes that expose my email**.
+- [x] GitHub → Settings → Emails: enable **Keep my email addresses private** and **Block command line pushes that expose my email**.
 - [x] Verify before every push: `git log --format='%an <%ae>' | sort -u`.
 - [x] `.gitignore` covers: `.env`, `*.db`, `data/`, `config.yaml` (real config), `node_modules/`, `.venv/`, build output, IDE folders.
 - [x] Ship only `config.example.yaml` and `.env.example` with fake data (`example.com`, `demo-project`).
 - [x] Add a **gitleaks** pre-commit hook and CI job (secrets scanning).
-- [ ] Enable GitHub **secret scanning** and **push protection** on the repository.
+- [x] Enable GitHub **secret scanning** and **push protection** on the repository.
 - [ ] Tests and fixtures use synthetic data only; screenshots in the README use the demo dataset.
 - [ ] Secrets (SMTP password, admin password, session key) only via env vars or Docker secrets, never in YAML in the repo, never logged (mask them in logs and in the UI).
 - [ ] No telemetry, no external assets in emails (no tracking pixels, no remote fonts/images).
@@ -193,7 +194,7 @@ cve_detector/
 - [x] Fix git identity (section 3) and verify.
 - [x] Add `LICENSE`, `.gitignore`, `README.md` skeleton, `SECURITY.md`, `CONTRIBUTING.md`.
 - [x] Add `.pre-commit-config.yaml`: gitleaks, ruff, ruff-format, prettier, end-of-file fixer.
-- [ ] First commit and push; enable secret scanning, push protection, Dependabot, private vulnerability reporting on GitHub.
+- [x] First commit and push; enable secret scanning, push protection, Dependabot, private vulnerability reporting on GitHub.
 
 ### Phase 1 — Backend skeleton
 - [x] `backend/` with `uv` (or Poetry), FastAPI app, `/api/health`.
@@ -202,11 +203,13 @@ cve_detector/
 - [x] Tooling: ruff, mypy (strict), pytest, coverage.
 
 ### Phase 2 — Ecosystems & catalog
-- [ ] `Ecosystem` interface: `normalize_name`, `parse_version`, `parse_range`, `parse_manifest`.
-- [ ] Maven: `groupId:artifactId`, Maven version ranges (`[1.0,2.0)`), `pom.xml` parsing (direct deps, `${property}` resolution, `dependencyManagement`). Document the limit: no parent POM / transitive resolution — for full coverage the user can import `mvn dependency:list` output (later: CycloneDX SBOM).
-- [ ] npm: semver ranges (`^`, `~`, `x`, `||`), `package.json` (direct deps) and `package-lock.json` v2/v3 (exact, includes transitives).
-- [ ] Catalog upsert so each `ecosystem + name` exists once; dependencies reference it.
-- [ ] Unit tests with synthetic manifests.
+- [x] `Ecosystem` interface: `normalize_name`, `parse_version`, `parse_spec`, `parse_range`, manifest parsers.
+- [x] Maven: `groupId:artifactId`, Maven version ranges (`[1.0,2.0)`), `pom.xml` parsing (direct deps, `${property}` resolution, `dependencyManagement`). Documented limit: no parent POM / BOM / transitive resolution — such versions are reported as unresolved and must be completed by the user; for full coverage import `mvn dependency:list` output (later: CycloneDX SBOM).
+- [x] Maven: `mvn dependency:list` output import (exact versions, transitives included).
+- [x] npm: semver ranges (`^`, `~`, `x`, `||`, hyphen), `package.json` (direct deps, `npm:` aliases; git/file/URL deps skipped with a warning; dist-tags reported as unresolved) and `package-lock.json` v2/v3 (exact, includes transitives, flagged as direct or not).
+- [x] Dependency scope (runtime / provided / optional / development) imported for every source; dev/test dependencies are kept, filtering is a per-project choice.
+- [x] Catalog upsert so each `ecosystem + name` exists once; dependencies reference it.
+- [x] Unit tests with synthetic manifests.
 
 ### Phase 3 — Vulnerability source (OSV)
 - [ ] `VulnSource` interface: `fetch(libraries) -> advisories`.
@@ -219,6 +222,7 @@ cve_detector/
 - [ ] Scan service: collect due projects → unique libraries → query → upsert advisories → compute findings.
 - [ ] Diff engine: new / updated / resolved findings, content hash per finding.
 - [ ] Apply per-project severity threshold and active suppressions; flag suppressions about to expire.
+- [ ] Per-project dependency scope filter (e.g. ignore `development` dependencies; default: include all).
 - [ ] Scheduler: tick every few minutes, run projects whose `next_scan_at` is due; lock to avoid overlapping runs.
 - [ ] Manual "scan now" endpoint.
 

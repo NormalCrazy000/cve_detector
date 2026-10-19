@@ -1,0 +1,14 @@
+[INFO] Scanning for projects...
+[INFO]
+[INFO] --- dependency:3.6.1:list (default-cli) @ demo-app ---
+[INFO]
+[INFO] The following files have been resolved:
+[INFO]    org.example:plain-lib:jar:3.12.0:compile -- module plain.lib
+[INFO]    org.example:plain-lib:jar:tests:3.12.0:test
+[INFO]    org.example:transitive-lib:jar:2.0.1:runtime
+[INFO]    org.example:optional-lib:jar:1.1:compile (optional)
+[INFO]    org.example:servlet-api:jar:4.0.1:provided -- module servlet.api [auto]
+[[1;34mINFO[m]    org.example:colored-lib:jar:0.9:compile
+   org.example:file-output-lib:jar:1.0.0:compile
+[INFO]
+[INFO] BUILD SUCCESS

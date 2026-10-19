@@ -35,6 +35,27 @@ class DependencySource(StrEnum):
     POM_XML = "pom.xml"
     PACKAGE_JSON = "package.json"
     PACKAGE_LOCK = "package-lock.json"
+    MVN_DEPENDENCY_LIST = "mvn-dependency-list"
+
+
+class DependencyScope(StrEnum):
+    """Where a dependency is used, normalized across ecosystems.
+
+    Ordered from most to least relevant at runtime; see :meth:`rank`.
+    Maven ``compile``/``runtime`` and npm ``dependencies`` map to ``runtime``;
+    Maven ``provided``/``system`` and npm ``peerDependencies`` to ``provided``;
+    Maven ``<optional>`` and npm ``optionalDependencies`` to ``optional``;
+    Maven ``test`` and npm ``devDependencies`` to ``development``.
+    """
+
+    RUNTIME = "runtime"
+    PROVIDED = "provided"
+    OPTIONAL = "optional"
+    DEVELOPMENT = "development"
+
+    @property
+    def rank(self) -> int:
+        return list(DependencyScope).index(self)
 
 
 class FindingStatus(StrEnum):

@@ -10,6 +10,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from cve_detector.db.base import Base, utcnow
 from cve_detector.db.enums import (
     AllClearPolicy,
+    DependencyScope,
     DependencySource,
     Ecosystem,
     FindingStatus,
@@ -93,6 +94,11 @@ class Dependency(TimestampMixin, Base):
     source: Mapped[DependencySource] = mapped_column(
         _enum(DependencySource), default=DependencySource.MANUAL
     )
+    scope: Mapped[DependencyScope] = mapped_column(
+        _enum(DependencyScope), default=DependencyScope.RUNTIME
+    )
+    # None when the source cannot tell (e.g. ``mvn dependency:list`` output).
+    is_direct: Mapped[bool | None] = mapped_column(default=True)
 
     project: Mapped[Project] = relationship(back_populates="dependencies")
     library: Mapped[Library] = relationship(back_populates="dependencies")
