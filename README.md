@@ -96,6 +96,11 @@ docker compose run --rm cve-detector python -m cve_detector.demo
 
 `docker compose down` stops and removes the container; add `-v` to delete the data volume too.
 
+## Documentation
+
+- [Architecture](docs/ARCHITECTURE.md): how scans, matching and notifications work, security choices
+- [Roadmap](docs/ROADMAP.md): what is done and what comes next
+
 ## Development
 
 ```bash
@@ -104,7 +109,6 @@ pre-commit install
 ```
 
 Backend: see [backend/README.md](backend/README.md). Web UI: see [frontend/README.md](frontend/README.md).
-
 Never commit real configuration: use `.env.example` as a template for your local `.env`.
 
 ## Contributions

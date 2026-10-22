@@ -1,4 +1,4 @@
-"""ORM models. See docs/ROADMAP.md, section "Data model"."""
+"""ORM models. See docs/ARCHITECTURE.md, section "Data model"."""
 
 from datetime import datetime
 from enum import StrEnum
