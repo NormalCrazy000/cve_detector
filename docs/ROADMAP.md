@@ -36,7 +36,7 @@ a usable v1. Tick the boxes as work progresses.
 | Topic | Decision |
 |-------|----------|
 | Backend | Python 3.12+, FastAPI, SQLAlchemy 2 + Alembic, httpx2 |
-| Frontend | SvelteKit (TypeScript), built with `adapter-static` and served by FastAPI → **one container** |
+| Frontend | SvelteKit 3 / Svelte 5 (TypeScript), built with `adapter-static` as a single-page app and served by FastAPI → **one container**; API client generated from the OpenAPI schema |
 | Storage | SQLite on a Docker volume (`/data`) |
 | Version matching | [`univers`](https://github.com/aboutcode-org/univers) (Apache-2.0) for Maven/npm version and range semantics |
 | Runtime | Long-running container with an internal scheduler (one background thread that wakes every few minutes, or at once on "scan now"; runs never overlap), started with `docker compose up -d` |
@@ -254,10 +254,11 @@ cve_detector/
 - [x] OpenAPI operation ids are the function names (stable input for the TypeScript client generated in Phase 7).
 
 ### Phase 7 — Web app (SvelteKit)
-- [ ] SvelteKit + TypeScript + `adapter-static`; a light component library or plain CSS.
-- [ ] Pages: login, dashboard (counts by severity, last scans), projects list/detail, dependency editor + manifest import, findings table, suppressions, settings (SMTP test, notifications).
-- [ ] Build output copied into the backend image and served by FastAPI.
-- [ ] Basic E2E test (Playwright) on the demo dataset.
+- [x] SvelteKit 3 + Svelte 5 + TypeScript + `adapter-static` (single-page app, `200.html` fallback); plain CSS (GitHub-like), light/dark theme following the OS with a manual switch; English UI; usable on phones (tables become cards).
+- [x] Pages: login, dashboard (open findings by severity, projects with scan status, recent scans and notifications, configuration warnings), projects list/detail (findings, dependency editor with in-place version changes, manifest import with preview and completion of unresolved versions, recipients, settings), findings with filters and suppression from a finding, suppressions, activity (scans, notification log), settings (test email, YAML backup, theme).
+- [x] Typed API client generated from the OpenAPI schema (`openapi-typescript` + `openapi-fetch`); a backend test fails when the committed schema is out of date.
+- [x] Build output served by FastAPI (`CVED_WEB_DIR`, unknown paths routed to the app), Content-Security-Policy with hashes, security headers.
+- [x] Synthetic demo dataset (`python -m cve_detector.demo`) and Playwright E2E tests on it (login, dashboard, search and suppress, dependencies and manifest import, logout; console errors fail the tests); optional screenshots.
 
 ### Phase 8 — Docker
 - [ ] Multi-stage `Dockerfile`: Node stage builds the UI → Python slim runtime; non-root user; `HEALTHCHECK`; `/data` volume.

@@ -23,6 +23,8 @@ pip install pre-commit   # or: uv tool install pre-commit
 pre-commit install
 ```
 
+Backend: see [backend/README.md](backend/README.md). Web UI: see [frontend/README.md](frontend/README.md).
+
 Never commit real configuration: use `.env.example` as a template for your local `.env`.
 
 ## Contributions

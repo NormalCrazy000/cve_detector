@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import Any
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -35,6 +35,15 @@ class DependencyEntry(_Strict):
     ecosystem: Ecosystem
     name: str
     version: str
+
+    @field_validator("version", mode="before")
+    @classmethod
+    def _quoted(cls, value: object) -> object:
+        # YAML reads 1.70 as the number 1.7: converting it back would change the version.
+        if isinstance(value, int | float):
+            raise ValueError(f"write the version in quotes, e.g. '{value}'")
+        return value
+
     scope: DependencyScope = DependencyScope.RUNTIME
     direct: bool | None = True
     source: DependencySource = DependencySource.MANUAL

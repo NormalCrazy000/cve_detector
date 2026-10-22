@@ -28,6 +28,7 @@ from cve_detector.notifiers import make_notifiers
 from cve_detector.notifiers.dispatch import AdminAlerter, Dispatcher
 from cve_detector.scanning.scheduler import Scheduler
 from cve_detector.sources import make_sources
+from cve_detector.web import mount_web_ui, security_headers
 
 
 @asynccontextmanager
@@ -81,6 +82,7 @@ def create_app() -> FastAPI:
     )
     app.state.login_throttle = LoginThrottle()
     app.middleware("http")(reject_cross_site)
+    app.middleware("http")(security_headers)
     app.include_router(health.router, prefix="/api")
     app.include_router(auth.router, prefix="/api")
     for router in (
@@ -92,6 +94,8 @@ def create_app() -> FastAPI:
         config.router,
     ):
         app.include_router(router, prefix="/api", dependencies=[Depends(require_admin)])
+    # Last: its catch-all route must not shadow the API.
+    mount_web_ui(app, get_settings().web_dir)
     return app
 
 

@@ -94,6 +94,9 @@ def test_invalid_configurations_change_nothing(client: TestClient) -> None:
         "suppressions: [{advisory: A, project: ghost, reason: r}]": "unknown project",
         "suppressions: [{advisory: A, reason: r, expires: 2027-01-01T00:00:00}]": "timezone",
         "projects: [{name: x, dependencies: [{ecosystem: npm, name: a, version: '>>1'}]}]": "x",
+        "projects: [{name: x, dependencies: [{ecosystem: maven, name: 'g:a', version: 1.70}]}]": (
+            "write the version in quotes"
+        ),
     }
     for content, message in cases.items():
         response = client.post("/api/config/import", json={"content": content})

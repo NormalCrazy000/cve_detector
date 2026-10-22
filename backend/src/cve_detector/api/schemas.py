@@ -27,13 +27,21 @@ def _unique_scopes(scopes: list[DependencyScope]) -> list[DependencyScope]:
 Scopes = Annotated[list[DependencyScope], AfterValidator(_unique_scopes)]
 
 
-class Page[T](BaseModel):
+class _Out(BaseModel):
+    """Response body: fields with defaults are always present, so the schema marks them required."""
+
+    model_config = ConfigDict(json_schema_serialization_defaults_required=True)
+
+
+class Page[T](_Out):
     items: list[T]
     total: int
 
 
-class _Orm(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+class _Orm(_Out):
+    model_config = ConfigDict(
+        from_attributes=True, json_schema_serialization_defaults_required=True
+    )
 
 
 # --- Projects -------------------------------------------------------------------------
@@ -64,7 +72,7 @@ class ProjectUpdate(BaseModel):
     email_delivery: EmailDelivery | None = None
 
 
-class SeverityCounts(BaseModel):
+class SeverityCounts(_Out):
     critical: int = 0
     high: int = 0
     medium: int = 0
@@ -116,7 +124,7 @@ class DependencyUpdate(BaseModel):
     is_direct: bool | None = None
 
 
-class DependencyOut(BaseModel):
+class DependencyOut(_Out):
     id: int
     ecosystem: Ecosystem
     name: str
@@ -145,7 +153,7 @@ class ManifestApply(ManifestUpload):
     skip: list[str] = Field(default_factory=list)
 
 
-class ManifestEntry(BaseModel):
+class ManifestEntry(_Out):
     name: str
     version_spec: str | None
     scope: DependencyScope
@@ -154,7 +162,7 @@ class ManifestEntry(BaseModel):
     problem: str | None = None
 
 
-class ManifestPreview(BaseModel):
+class ManifestPreview(_Out):
     ecosystem: Ecosystem
     source: DependencySource
     added: list[ManifestEntry]
@@ -194,7 +202,7 @@ class SuppressionOut(_Orm):
 # --- Findings -------------------------------------------------------------------------
 
 
-class AdvisoryOut(BaseModel):
+class AdvisoryOut(_Out):
     id: int
     source: str
     source_id: str
@@ -210,7 +218,7 @@ class AdvisoryOut(BaseModel):
     is_known_exploited: bool
 
 
-class FindingOut(BaseModel):
+class FindingOut(_Out):
     id: int
     project_id: int
     project_name: str

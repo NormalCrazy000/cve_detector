@@ -47,3 +47,6 @@ Thumbs.db
 
 # --- Tools ---
 .claude/settings.local.json
+
+# Web UI build copied into the backend package (Docker image)
+backend/src/cve_detector/web/

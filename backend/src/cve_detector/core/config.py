@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     )
 
     data_dir: Path = Path("data")
+    # Built web UI (SvelteKit static output); the API alone is served when it is missing.
+    web_dir: Path = Path(__file__).resolve().parent.parent / "web"
     database_url: str | None = None
     log_level: str = "INFO"
 
