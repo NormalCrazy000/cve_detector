@@ -1,0 +1,28 @@
+# Quick start: cp .env.example .env, edit it, then: docker compose up -d
+name: cve-detector
+
+services:
+  cve-detector:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    image: cve-detector:local
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      # Localhost only by default. For LAN access set CVED_BIND_ADDRESS=0.0.0.0 in .env
+      # (do not expose this service to the Internet).
+      - "${CVED_BIND_ADDRESS:-127.0.0.1}:${CVED_PORT:-8080}:8080"
+    volumes:
+      - data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  data:
+    name: cve-detector-data

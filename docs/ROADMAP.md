@@ -176,7 +176,7 @@ cve_detector/
 │   └── tests/
 ├── frontend/               # SvelteKit app (adapter-static)
 ├── docker/
-│   └── Dockerfile
+│   └── Dockerfile          # build context: repository root
 ├── docs/
 │   └── ROADMAP.md
 ├── .github/
@@ -261,10 +261,11 @@ cve_detector/
 - [x] Synthetic demo dataset (`python -m cve_detector.demo`) and Playwright E2E tests on it (login, dashboard, search and suppress, dependencies and manifest import, logout; console errors fail the tests); optional screenshots.
 
 ### Phase 8 — Docker
-- [ ] Multi-stage `Dockerfile`: Node stage builds the UI → Python slim runtime; non-root user; `HEALTHCHECK`; `/data` volume.
-- [ ] `compose.yaml` with env file, volume, port bound to `127.0.0.1:8080`, restart policy.
-- [ ] README "Quick start": `cp .env.example .env` → edit → `docker compose up -d`.
-- [ ] Document LAN opt-in (`0.0.0.0` binding) and state clearly that Internet exposure is unsupported.
+- [x] Multi-stage `docker/Dockerfile`: Node stage builds the UI → uv installs the backend into a virtualenv → Python slim runtime; non-root user (UID 10001); `HEALTHCHECK`; `/data` volume; OCI labels (MIT).
+- [x] `compose.yaml`: `.env` file, named volume `cve-detector-data`, port bound to `127.0.0.1:8080` (`CVED_BIND_ADDRESS` / `CVED_PORT`), restart policy, read-only root filesystem, all capabilities dropped, `no-new-privileges`.
+- [x] README "Quick start", configuration, backup/restore of the volume (tested), update, demo data, uninstall.
+- [x] Document LAN opt-in (`CVED_BIND_ADDRESS=0.0.0.0`) and state clearly that Internet exposure is unsupported.
+- [x] The app refuses to start with the example admin password; verified end to end in the container (health, non-root, read-only, persistence across restarts, real OSV scan).
 
 ### Phase 9 — CI/CD & release
 - [ ] `ci.yml`: ruff, mypy, pytest, frontend lint/check/build, gitleaks, license checks.

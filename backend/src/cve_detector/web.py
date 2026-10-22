@@ -35,7 +35,7 @@ def mount_web_ui(app: FastAPI, web_dir: Path) -> bool:
         logger.info("web UI not found in %s, serving the API only", root)
         return False
 
-    @app.get("/{path:path}", include_in_schema=False)
+    @app.api_route("/{path:path}", methods=["GET", "HEAD"], include_in_schema=False)
     def web_ui(path: str) -> FileResponse:
         if path == "api" or path.startswith("api/"):
             raise HTTPException(status.HTTP_404_NOT_FOUND, "not found")

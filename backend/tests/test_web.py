@@ -30,6 +30,7 @@ def test_web_ui_is_served_next_to_the_api(web_dir: Path, client: TestClient) -> 
     plain = client.get("/theme.js")
 
     assert index.text == "<html>app</html>"
+    assert client.head("/").status_code == 200
     assert index.headers["cache-control"] == "no-cache"
     assert asset.headers["cache-control"] == "public, max-age=31536000, immutable"
     assert plain.headers["cache-control"] == "no-cache"

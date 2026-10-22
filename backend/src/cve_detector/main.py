@@ -30,15 +30,21 @@ from cve_detector.scanning.scheduler import Scheduler
 from cve_detector.sources import make_sources
 from cve_detector.web import mount_web_ui, security_headers
 
+# The placeholder in .env.example, refused so that nobody runs with it by mistake.
+EXAMPLE_PASSWORD = "change-me"  # noqa: S105
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
     configure_logging(settings.log_level)
-    if settings.admin_password is None or not settings.admin_password.get_secret_value():
+    password = settings.admin_password.get_secret_value() if settings.admin_password else ""
+    if not password:
         raise RuntimeError(
             "CVED_ADMIN_PASSWORD is not set: add it to .env (see .env.example) and restart"
         )
+    if password == EXAMPLE_PASSWORD:
+        raise RuntimeError("CVED_ADMIN_PASSWORD is still the example value: choose a real one")
     if settings.database_url is None:
         settings.data_dir.mkdir(parents=True, exist_ok=True)
     upgrade_to_head(settings.sqlalchemy_url)

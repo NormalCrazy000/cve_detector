@@ -67,13 +67,21 @@ def test_hashed_admin_password(monkeypatch: pytest.MonkeyPatch, anon_client: Tes
     assert ok.status_code == 200
 
 
-def test_missing_admin_password_stops_startup(monkeypatch: pytest.MonkeyPatch, db_url: str) -> None:
+@pytest.mark.parametrize(
+    ("password", "message"), [(None, "is not set"), ("change-me", "still the example value")]
+)
+def test_unusable_admin_password_stops_startup(
+    monkeypatch: pytest.MonkeyPatch, db_url: str, password: str | None, message: str
+) -> None:
     from cve_detector.main import create_app
 
-    monkeypatch.delenv("CVED_ADMIN_PASSWORD")
+    if password is None:
+        monkeypatch.delenv("CVED_ADMIN_PASSWORD")
+    else:
+        monkeypatch.setenv("CVED_ADMIN_PASSWORD", password)
     get_settings.cache_clear()
 
-    with pytest.raises(RuntimeError, match="CVED_ADMIN_PASSWORD"), TestClient(create_app()):
+    with pytest.raises(RuntimeError, match=message), TestClient(create_app()):
         pass
 
 

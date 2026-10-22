@@ -1,0 +1,22 @@
+# Only what the image needs; never local configuration or data.
+.git
+.github
+.env
+.env.*
+!.env.example
+data/
+docs/
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+backend/.venv
+backend/dist
+backend/tests
+backend/src/cve_detector/web
+frontend/node_modules
+frontend/build
+frontend/.svelte-kit
+frontend/test-results
+frontend/playwright-report
