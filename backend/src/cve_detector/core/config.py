@@ -27,8 +27,11 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
 
     admin_username: str = "admin"
+    # Plain text, or an argon2 hash from ``python -m cve_detector.hash_password``.
     admin_password: SecretStr | None = None
-    secret_key: SecretStr | None = None
+    session_days: int = 7
+    # Send the session cookie over HTTPS only; enable behind a TLS reverse proxy.
+    cookie_secure: bool = False
 
     smtp_host: str | None = None
     smtp_port: int = 587

@@ -37,7 +37,7 @@ _STATUS_LABELS = {
     FindingStatus.WITHDRAWN: "withdrawn",
 }
 _RESOLUTIONS = {
-    FindingStatus.FIXED: "the advisory no longer matches this version",
+    FindingStatus.FIXED: "this version is not affected (dependency upgraded or advisory corrected)",
     FindingStatus.WITHDRAWN: "the advisory was withdrawn by its database",
 }
 # Most important first.

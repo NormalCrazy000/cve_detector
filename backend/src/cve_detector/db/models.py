@@ -210,3 +210,14 @@ class NotificationLog(Base):
     content_hash: Mapped[str] = mapped_column(String(64))
     success: Mapped[bool]
     error: Mapped[str | None] = mapped_column(Text)
+
+
+class AdminSession(Base):
+    """A logged-in browser. Only a hash of the cookie token is stored."""
+
+    __tablename__ = "admin_session"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+    expires_at: Mapped[datetime]

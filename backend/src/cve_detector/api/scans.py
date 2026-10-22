@@ -1,11 +1,13 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from cve_detector.api.schemas import Page, ScanRunOut
 from cve_detector.db.base import utcnow
-from cve_detector.db.models import Project
+from cve_detector.db.models import Project, ScanRun
 from cve_detector.db.session import get_session
 
 router = APIRouter(tags=["scans"])
@@ -30,3 +32,14 @@ def scan_now(
     if scheduler is not None:
         scheduler.trigger()
     return ScanQueued(project_id=project_id, queued=True)
+
+
+@router.get("/scans")
+def list_scans(
+    session: Annotated[Session, Depends(get_session)],
+    limit: Annotated[int, Query(ge=1, le=500)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> Page[ScanRunOut]:
+    total = session.scalar(select(func.count()).select_from(ScanRun)) or 0
+    runs = session.scalars(select(ScanRun).order_by(ScanRun.id.desc()).limit(limit).offset(offset))
+    return Page(items=[ScanRunOut.model_validate(r) for r in runs], total=total)

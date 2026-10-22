@@ -55,3 +55,11 @@ def expiring_suppressions(
         and s.expires_at is not None
         and now < s.expires_at <= now + window
     ]
+
+
+def refresh_suppressions(session: Session, now: datetime) -> None:
+    """Re-link every finding to its active suppression, e.g. after one is added or removed."""
+    suppressions = active_suppressions(session, now)
+    for project in session.scalars(select(Project)):
+        findings = [f for d in project.dependencies for f in d.findings]
+        apply_suppressions(project, findings, suppressions)

@@ -9,6 +9,9 @@ from cve_detector.core.config import get_settings
 from cve_detector.db.migrate import upgrade_to_head
 from cve_detector.db.session import get_engine, get_sessionmaker
 
+ADMIN_USERNAME = "admin"
+ADMIN_PASSWORD = "test-admin-password"  # noqa: S105 - synthetic test credentials
+
 
 def _clear_caches() -> None:
     get_settings.cache_clear()
@@ -24,6 +27,8 @@ def isolated_settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterat
     monkeypatch.delenv("CVED_DATABASE_URL", raising=False)
     # Never reach OSV from tests; scheduler tests start their own.
     monkeypatch.setenv("CVED_SCHEDULER_ENABLED", "false")
+    monkeypatch.setenv("CVED_ADMIN_USERNAME", ADMIN_USERNAME)
+    monkeypatch.setenv("CVED_ADMIN_PASSWORD", ADMIN_PASSWORD)
     _clear_caches()
     yield tmp_path / "data"
     get_engine().dispose()
@@ -45,8 +50,19 @@ def session(db_url: str) -> Iterator[Session]:
 
 
 @pytest.fixture
-def client() -> Iterator[TestClient]:
+def anon_client() -> Iterator[TestClient]:
+    """A client that is not logged in."""
     from cve_detector.main import create_app
 
     with TestClient(create_app()) as c:
         yield c
+
+
+@pytest.fixture
+def client(anon_client: TestClient) -> TestClient:
+    """A client logged in as the admin."""
+    response = anon_client.post(
+        "/api/auth/login", json={"username": ADMIN_USERNAME, "password": ADMIN_PASSWORD}
+    )
+    assert response.status_code == 200
+    return anon_client

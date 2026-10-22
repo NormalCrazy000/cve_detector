@@ -4,12 +4,24 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import timedelta
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
+from fastapi.routing import APIRoute
 
 from cve_detector import __version__
-from cve_detector.api import health, notifications, scans
+from cve_detector.api import (
+    auth,
+    config,
+    findings,
+    health,
+    notifications,
+    projects,
+    scans,
+    suppressions,
+)
+from cve_detector.api.deps import reject_cross_site, require_admin
 from cve_detector.core.config import get_settings
 from cve_detector.core.logging import configure_logging
+from cve_detector.core.security import LoginThrottle
 from cve_detector.db.migrate import upgrade_to_head
 from cve_detector.db.session import get_sessionmaker
 from cve_detector.notifiers import make_notifiers
@@ -22,6 +34,10 @@ from cve_detector.sources import make_sources
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
     configure_logging(settings.log_level)
+    if settings.admin_password is None or not settings.admin_password.get_secret_value():
+        raise RuntimeError(
+            "CVED_ADMIN_PASSWORD is not set: add it to .env (see .env.example) and restart"
+        )
     if settings.database_url is None:
         settings.data_dir.mkdir(parents=True, exist_ok=True)
     upgrade_to_head(settings.sqlalchemy_url)
@@ -51,11 +67,31 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             source.close()
 
 
+def _operation_id(route: APIRoute) -> str:
+    """Stable OpenAPI operation ids (the function names) for the generated TS client."""
+    return route.name
+
+
 def create_app() -> FastAPI:
-    app = FastAPI(title="cve_detector", version=__version__, lifespan=lifespan)
+    app = FastAPI(
+        title="cve_detector",
+        version=__version__,
+        lifespan=lifespan,
+        generate_unique_id_function=_operation_id,
+    )
+    app.state.login_throttle = LoginThrottle()
+    app.middleware("http")(reject_cross_site)
     app.include_router(health.router, prefix="/api")
-    app.include_router(scans.router, prefix="/api")
-    app.include_router(notifications.router, prefix="/api")
+    app.include_router(auth.router, prefix="/api")
+    for router in (
+        projects.router,
+        findings.router,
+        suppressions.router,
+        scans.router,
+        notifications.router,
+        config.router,
+    ):
+        app.include_router(router, prefix="/api", dependencies=[Depends(require_admin)])
     return app
 
 

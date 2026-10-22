@@ -57,7 +57,7 @@ a usable v1. Tick the boxes as work progresses.
 | Identity | Pseudonym only: author `NormalCrazy000` with the GitHub **noreply** email; `LICENSE` copyright `NormalCrazy000`. No real name, no personal email anywhere. |
 | Platforms | Multi-arch image: `linux/amd64` + `linux/arm64` (x86 servers, Raspberry Pi, Apple Silicon). |
 | Distribution | GHCR, published by GitHub Actions on every `vX.Y.Z` tag; local `docker compose build` still supported. |
-| Web access | Localhost / LAN only, single admin login (credentials from environment). Port bound to `127.0.0.1` by default; LAN exposure is an explicit opt-in. Not designed to be exposed to the Internet. |
+| Web access | Localhost / LAN only, single admin login (credentials from environment; the password may be given as an argon2 hash). Sessions are stored server-side (revocable), cookie `HttpOnly` + `SameSite=Strict`; state-changing calls must be same-origin JSON; failed logins are throttled. Port bound to `127.0.0.1` by default; LAN exposure is an explicit opt-in. Not designed to be exposed to the Internet. |
 | SMTP | Generic (host/port/STARTTLS or SSL/user/password); docs show Gmail App Password as an example. |
 | User data | Real projects/libraries/recipients are **never** committed — only an anonymized example config. |
 
@@ -96,6 +96,7 @@ a usable v1. Tick the boxes as work progresses.
 - **Finding**: dependency × advisory, status (`affected|potentially_affected|fixed|withdrawn`), active suppression, first seen, last seen, resolved at, last notified state.
 - **Suppression**: advisory id, optional project scope, reason, created by, expires at.
 - **ScanRun**: start/end, status, counters, errors.
+- **AdminSession**: hash of the session token, created at, expires at.
 - **NotificationLog**: project (none for test emails and admin alerts), kind (`digest|all_clear|test|admin_alert`), channel, targets, sent at, content hash, result.
 
 ### Key behaviours
@@ -129,7 +130,7 @@ Do these **before the first commit**.
 - [x] Add a **gitleaks** pre-commit hook and CI job (secrets scanning).
 - [x] Enable GitHub **secret scanning** and **push protection** on the repository.
 - [ ] Tests and fixtures use synthetic data only; screenshots in the README use the demo dataset.
-- [ ] Secrets (SMTP password, admin password, session key) only via env vars or Docker secrets, never in YAML in the repo, never logged (mask them in logs and in the UI).
+- [ ] Secrets (SMTP password, admin password) only via env vars or Docker secrets, never in YAML in the repo, never logged (mask them in logs and in the UI).
 - [ ] No telemetry, no external assets in emails (no tracking pixels, no remote fonts/images).
 - [ ] Logs must not contain recipient addresses at INFO level.
 - [x] `SECURITY.md` with a private reporting channel (GitHub "Private vulnerability reporting", not a personal email).
@@ -245,12 +246,12 @@ cve_detector/
 - [x] Tests with a fake SMTP server (`aiosmtpd`).
 
 ### Phase 6 — REST API & auth
-- [ ] CRUD: projects, recipients, dependencies, suppressions.
-- [ ] Manifest upload endpoint (`pom.xml`, `package.json`, `package-lock.json`) with preview before saving.
-- [ ] YAML import/export of the whole configuration.
-- [ ] Read endpoints: findings (filters by project / severity / status), scan runs, notification log.
-- [ ] Auth: single admin from env, password hashed (argon2), HTTP-only `SameSite=Strict` session cookie, login rate limiting.
-- [ ] OpenAPI schema → generate the TypeScript client for the frontend.
+- [x] CRUD: projects, recipients, dependencies, suppressions. Changing a dependency's version updates it in place, so the next digest reports the findings the upgrade resolved; any dependency change schedules a scan at the next scheduler tick. Suppression changes apply to existing findings immediately.
+- [x] Manifest import (`pom.xml`, `package.json`, `package-lock.json`, `mvn dependency:list`) with a preview, then synchronization: dependencies previously imported from the same kind of file are added, updated or removed; manual ones and other files are left alone. Unresolved versions must be completed or skipped.
+- [x] YAML import/export of the whole configuration (no secrets). Import merges: projects matched by name are updated, nothing is deleted; invalid files change nothing.
+- [x] Read endpoints: findings (filters by project / severity / status / suppression / text, paginated, most severe first), scan runs, notification log.
+- [x] Auth: single admin from env (plain or argon2 hash), server-side sessions, HTTP-only `SameSite=Strict` cookie, same-origin JSON for writes, login throttling (5 failures / 15 min). Startup fails without `CVED_ADMIN_PASSWORD`.
+- [x] OpenAPI operation ids are the function names (stable input for the TypeScript client generated in Phase 7).
 
 ### Phase 7 — Web app (SvelteKit)
 - [ ] SvelteKit + TypeScript + `adapter-static`; a light component library or plain CSS.
