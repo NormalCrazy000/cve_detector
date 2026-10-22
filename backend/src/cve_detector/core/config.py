@@ -42,6 +42,14 @@ class Settings(BaseSettings):
     # Parallel downloads of advisory details; keep it low to be polite to OSV.
     osv_max_workers: int = 4
 
+    scheduler_enabled: bool = True
+    # How often the scheduler looks for projects due for a scan.
+    scan_tick_seconds: float = 300.0
+    # After a failed scan, retry sooner than the project interval.
+    scan_retry_minutes: int = 60
+    # Digests mention suppressions that expire within this many days.
+    suppression_expiry_warning_days: int = 7
+
     @property
     def sqlalchemy_url(self) -> str:
         if self.database_url:

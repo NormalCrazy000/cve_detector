@@ -59,10 +59,21 @@ class DependencyScope(StrEnum):
 
 
 class FindingStatus(StrEnum):
+    """Result of matching a dependency against an advisory.
+
+    ``fixed`` means the advisory no longer matches (its ranges were corrected or the
+    package was removed from it); ``withdrawn`` means the database retracted it.
+    Suppressions do not change the status, see ``Finding.suppression_id``.
+    """
+
     AFFECTED = "affected"
     POTENTIALLY_AFFECTED = "potentially_affected"
     FIXED = "fixed"
-    SUPPRESSED = "suppressed"
+    WITHDRAWN = "withdrawn"
+
+    @property
+    def is_open(self) -> bool:
+        return self in (FindingStatus.AFFECTED, FindingStatus.POTENTIALLY_AFFECTED)
 
 
 class ScanStatus(StrEnum):

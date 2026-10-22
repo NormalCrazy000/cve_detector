@@ -22,6 +22,8 @@ def isolated_settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterat
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("CVED_DATA_DIR", str(tmp_path / "data"))
     monkeypatch.delenv("CVED_DATABASE_URL", raising=False)
+    # Never reach OSV from tests; scheduler tests start their own.
+    monkeypatch.setenv("CVED_SCHEDULER_ENABLED", "false")
     _clear_caches()
     yield tmp_path / "data"
     get_engine().dispose()

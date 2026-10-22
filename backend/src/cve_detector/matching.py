@@ -14,7 +14,7 @@ better a finding to review than a silent miss.
 
 import logging
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from typing import Any
 
@@ -74,10 +74,7 @@ def affected_intervals(
     """Versions of one package affected by an advisory, from OSV ``affected`` entries."""
     intervals: list[Interval] = []
     complete, mentioned = True, False
-    for entry in affected:
-        package = entry.get("package") or {}
-        if package.get("ecosystem") != OSV_ECOSYSTEMS[ecosystem] or package.get("name") != name:
-            continue
+    for entry in _package_entries(ecosystem, name, affected):
         mentioned = True
         evaluable = False
         for version_range in entry.get("ranges", []):
@@ -98,6 +95,30 @@ def affected_intervals(
         if not evaluable:
             complete = False
     return AffectedVersions(union(intervals), complete, mentioned)
+
+
+def fixed_versions(
+    ecosystem: Ecosystem, name: str, affected: Iterable[dict[str, Any]]
+) -> list[str]:
+    """Versions that fix the advisory for one package, as written by the database."""
+    fixed: list[str] = []
+    for entry in _package_entries(ecosystem, name, affected):
+        for version_range in entry.get("ranges", []):
+            if version_range.get("type") not in ("SEMVER", "ECOSYSTEM"):
+                continue
+            fixed.extend(
+                str(event["fixed"]) for event in version_range.get("events", []) if "fixed" in event
+            )
+    return sorted(set(fixed))
+
+
+def _package_entries(
+    ecosystem: Ecosystem, name: str, affected: Iterable[dict[str, Any]]
+) -> Iterator[dict[str, Any]]:
+    for entry in affected:
+        package = entry.get("package") or {}
+        if package.get("ecosystem") == OSV_ECOSYSTEMS[ecosystem] and package.get("name") == name:
+            yield entry
 
 
 def _range_intervals(handler: EcosystemHandler, events: list[dict[str, str]]) -> list[Interval]:

@@ -33,16 +33,17 @@ a usable v1. Tick the boxes as work progresses.
 
 | Topic | Decision |
 |-------|----------|
-| Backend | Python 3.12+, FastAPI, SQLAlchemy 2 + Alembic, APScheduler, httpx2 |
+| Backend | Python 3.12+, FastAPI, SQLAlchemy 2 + Alembic, httpx2 |
 | Frontend | SvelteKit (TypeScript), built with `adapter-static` and served by FastAPI → **one container** |
 | Storage | SQLite on a Docker volume (`/data`) |
 | Version matching | [`univers`](https://github.com/aboutcode-org/univers) (Apache-2.0) for Maven/npm version and range semantics |
-| Runtime | Long-running container with an internal scheduler, started with `docker compose up -d` |
+| Runtime | Long-running container with an internal scheduler (one background thread that wakes every few minutes, or at once on "scan now"; runs never overlap), started with `docker compose up -d` |
 | Images | Multi-arch (`linux/amd64`, `linux/arm64`), published to GHCR on tagged releases |
 | CI | GitHub Actions: lint, type-check, tests, frontend build, gitleaks, dependency license check, CodeQL, Dependabot |
 | Advisory fetching | OSV `querybatch` (package only) lists advisory ids + `modified` for all libraries in one call; details (`/v1/vulns/{id}`) are downloaded only when new or changed. Matching is done locally for exact versions and ranges alike. |
 | Range evaluation | Interval arithmetic between the dependency spec and the advisory's affected ranges (no registry calls): all allowed versions affected → `affected`, some → `potentially_affected`. Unevaluable ranges → `potentially_affected`. |
 | Severity | Highest among all CVSS vectors (v2, v3.x, v4.0) and database labels (e.g. GitHub `MODERATE`). Advisories without any severity (`unknown`) always pass the project threshold. |
+| Notifications | Findings are always stored; the severity threshold, the included dependency scopes and suppressions only decide what is notified. Re-notified only on significant changes (status, severity, CVSS score, fixed versions, known exploitation), or on any advisory change if the project opts in. Resolved findings (no longer matching or withdrawn) are reported once and kept as history. |
 | CVSS | Own implementation of v2 and v3.x; v4.0 ported from the FIRST reference calculator (BSD-2-Clause), verified against it on 20,000 random vectors. |
 | License | **MIT** |
 | Language | Everything in the repo in **English** |
@@ -68,7 +69,7 @@ a usable v1. Tick the boxes as work progresses.
 │  SvelteKit static UI  ──HTTP──▶  FastAPI (REST /api/*)             │
 │                                     │                              │
 │                                     ▼                              │
-│   Scheduler (APScheduler) ──▶  Scan service ──▶ VulnSource(s)      │
+│   Scheduler (thread)      ──▶  Scan service ──▶ VulnSource(s)      │
 │        tick every N min            │              └ OSV.dev        │
 │                                     │            Enrichers         │
 │                                     │              ├ CISA KEV      │
@@ -84,13 +85,13 @@ a usable v1. Tick the boxes as work progresses.
 
 ### Data model (first draft)
 
-- **Project**: name, description, scan interval, min severity, all-clear policy (`never|every_run|daily|weekly`), last/next scan.
+- **Project**: name, description, scan interval, min severity, included dependency scopes, minor-update notifications on/off, all-clear policy (`never|every_run|daily|weekly`), last/next scan, last scan error.
 - **Recipient**: project → email address (and later: channel type + target).
 - **Library** (shared catalog, unique on `ecosystem + name`): e.g. `Maven / org.apache.logging.log4j:log4j-core`, `npm / lodash`.
 - **Dependency**: project → library + `version_spec` + `is_exact` + source (`manual|pom.xml|package.json|package-lock.json|mvn-dependency-list`)
   + scope (`runtime|provided|optional|development`, normalized across ecosystems) + `is_direct` (unknown for `mvn dependency:list`).
 - **Advisory**: OSV id, aliases (CVE ids, GHSA ids), summary, severity / CVSS vector + score, affected ranges, fixed versions, `published`, `modified`, `withdrawn`, raw JSON.
-- **Finding**: dependency × advisory, status (`affected|potentially_affected|fixed|suppressed`), first seen, last seen, last notified hash.
+- **Finding**: dependency × advisory, status (`affected|potentially_affected|fixed|withdrawn`), active suppression, first seen, last seen, resolved at, last notified state.
 - **Suppression**: advisory id, optional project scope, reason, created by, expires at.
 - **ScanRun**: start/end, status, counters, errors.
 - **NotificationLog**: project, channel, sent at, content hash, result.
@@ -104,7 +105,7 @@ a usable v1. Tick the boxes as work progresses.
      every allowed version affected → `affected`; some → `potentially_affected` (shown separately in the digest).
 3. **Change detection**: compare stored `modified`, severity, fixed versions and KEV flag; changes generate a "updated advisory" entry.
 4. **Digest**: one email per project per run, grouped by severity, with: new findings, updated findings, KEV hits, deprecations, new releases (if enabled), expiring suppressions. "All clear" email only if the project's policy says so.
-5. **Idempotency**: a finding is re-notified only when its content hash changes, so restarts never spam.
+5. **Idempotency**: each finding stores the state last notified, written only after a successful send; a finding is re-notified only when that state changes, so restarts never spam and failed sends are retried.
 6. **Resilience**: HTTP retries with backoff, OSV rate limiting, a failed scan is reported in the UI (and optionally by email to an admin address).
 
 ---
@@ -223,13 +224,13 @@ cve_detector/
 - [x] Tests with synthetic OSV responses (no network in CI); CVSS v4 tests use reference scores from the FIRST calculator.
 
 ### Phase 4 — Scan engine & diff
-- [ ] Scan service: collect due projects → unique libraries → query → upsert advisories → compute findings.
-- [ ] Diff engine: new / updated / resolved findings, content hash per finding.
-- [ ] Apply per-project severity threshold (`unknown` severity always passes) and active suppressions; flag suppressions about to expire.
-- [ ] Withdrawn advisories close their findings.
-- [ ] Per-project dependency scope filter (e.g. ignore `development` dependencies; default: include all).
-- [ ] Scheduler: tick every few minutes, run projects whose `next_scan_at` is due; lock to avoid overlapping runs.
-- [ ] Manual "scan now" endpoint.
+- [x] Scan service: collect due projects → unique libraries → query → upsert advisories → compute findings. A failed scan is retried after `CVED_SCAN_RETRY_MINUTES` (default 60) instead of the full interval.
+- [x] Diff engine: new / updated / resolved findings against the last notified state; minor advisory changes notified only if the project opts in.
+- [x] Apply per-project severity threshold (`unknown` severity always passes) and active suppressions (by advisory id or alias); flag suppressions expiring within `CVED_SUPPRESSION_EXPIRY_WARNING_DAYS` (default 7). A suppressed finding is reported as new again when its suppression ends.
+- [x] Withdrawn advisories close their findings.
+- [x] Per-project dependency scope filter (choose the included scopes; default: all).
+- [x] Scheduler: tick every `CVED_SCAN_TICK_SECONDS` (default 300), run projects whose `next_scan_at` is due in one run; a single thread so runs never overlap; runs interrupted by a restart are marked failed.
+- [x] Manual "scan now" endpoint (`POST /api/projects/{id}/scan`): queued if a scan is running, never lost.
 
 ### Phase 5 — Notifications
 - [ ] `Notifier` interface: `send(project, digest) -> result`; registry of channels.

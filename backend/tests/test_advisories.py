@@ -46,6 +46,9 @@ class FakeSource:
             if i != "GONE"
         ]
 
+    def close(self) -> None:
+        pass
+
 
 def test_sync_fetches_only_new_or_changed_advisories(session: Session) -> None:
     lib_a = get_or_create_library(session, Ecosystem.NPM, "example-a")

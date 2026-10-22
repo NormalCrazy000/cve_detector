@@ -45,8 +45,16 @@ class Project(TimestampMixin, Base):
     all_clear_policy: Mapped[AllClearPolicy] = mapped_column(
         _enum(AllClearPolicy), default=AllClearPolicy.NEVER
     )
+    # Dependency scopes that are notified; findings of the others are kept but not sent.
+    included_scopes: Mapped[list[str]] = mapped_column(
+        JSON, default=lambda: [s.value for s in DependencyScope]
+    )
+    # Also notify advisory changes that are not significant (new links, reworded text).
+    notify_minor_updates: Mapped[bool] = mapped_column(default=False)
     last_scan_at: Mapped[datetime | None]
+    # None: due immediately (e.g. a project that was never scanned).
     next_scan_at: Mapped[datetime | None]
+    last_scan_error: Mapped[str | None] = mapped_column(Text)
 
     recipients: Mapped[list["Recipient"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
@@ -140,10 +148,18 @@ class Finding(Base):
     status: Mapped[FindingStatus] = mapped_column(_enum(FindingStatus))
     first_seen_at: Mapped[datetime] = mapped_column(default=utcnow)
     last_seen_at: Mapped[datetime] = mapped_column(default=utcnow)
-    notified_hash: Mapped[str | None] = mapped_column(String(64))
+    resolved_at: Mapped[datetime | None]
+    # The active suppression silencing this finding, refreshed on every scan.
+    suppression_id: Mapped[int | None] = mapped_column(
+        ForeignKey("suppression.id", ondelete="SET NULL")
+    )
+    # What the recipients were last told (see ``scanning.diff.finding_state``);
+    # None when they were never told, or the finding was suppressed since.
+    notified_state: Mapped[dict[str, Any] | None] = mapped_column(JSON)
 
     dependency: Mapped[Dependency] = relationship(back_populates="findings")
     advisory: Mapped[Advisory] = relationship(back_populates="findings")
+    suppression: Mapped["Suppression | None"] = relationship()
 
 
 class Suppression(Base):

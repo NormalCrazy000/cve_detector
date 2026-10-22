@@ -60,3 +60,7 @@ class VulnSource(Protocol):
     def fetch_advisories(self, ids: Sequence[str]) -> list[AdvisoryRecord]:
         """Full details of the given advisories; unknown ids are skipped."""
         ...
+
+    def close(self) -> None:
+        """Release network resources."""
+        ...
