@@ -30,6 +30,20 @@ class AllClearPolicy(StrEnum):
     WEEKLY = "weekly"
 
 
+class EmailDelivery(StrEnum):
+    """How a project's email recipients receive a message."""
+
+    SEPARATE = "separate"  # one private message per recipient
+    TOGETHER = "together"  # one message with every recipient in "To"
+
+
+class NotificationKind(StrEnum):
+    DIGEST = "digest"
+    ALL_CLEAR = "all_clear"
+    TEST = "test"
+    ADMIN_ALERT = "admin_alert"
+
+
 class DependencySource(StrEnum):
     MANUAL = "manual"
     POM_XML = "pom.xml"

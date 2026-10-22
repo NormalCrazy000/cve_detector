@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     smtp_username: str | None = None
     smtp_password: SecretStr | None = None
     smtp_from: str | None = None
+    smtp_timeout_seconds: float = 30.0
+    # Optional address told when scans start failing and when they recover.
+    admin_email: str | None = None
 
     osv_api_url: str = "https://api.osv.dev"
     http_timeout_seconds: float = 30.0

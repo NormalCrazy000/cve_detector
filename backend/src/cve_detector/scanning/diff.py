@@ -56,7 +56,9 @@ class ProjectDigest:
 
     @property
     def has_news(self) -> bool:
-        return bool(self.changes or self.expiring_suppressions)
+        """Whether a digest is due; expiring suppressions are only mentioned in messages
+        that are sent anyway (their expiry is reported as a new finding)."""
+        return bool(self.changes)
 
 
 def finding_state(finding: Finding) -> dict[str, Any]:

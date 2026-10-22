@@ -1,0 +1,19 @@
+{# One finding in plain text; expects `f`. #}
+[{{ f.severity }}{% if f.cvss_score is not none %} {{ f.cvss_score }}{% endif %}] {{ f.advisory_id }}{% if f.aliases %} ({{ f.aliases | join(", ") }}){% endif %}
+
+{% if f.summary %}
+  {{ f.summary }}
+{% endif %}
+  Dependency: {{ f.package }} {{ f.version_spec }} ({{ f.status }})
+{% if f.resolution %}
+  Why: {{ f.resolution }}
+{% else %}
+  Fixed in: {{ f.fixed_versions | join(", ") if f.fixed_versions else "no fixed version yet" }}
+{% endif %}
+{% if f.known_exploited %}
+  Known to be exploited in the wild
+{% endif %}
+{% for change in f.changes %}
+  Changed: {{ change }}
+{% endfor %}
+  {{ f.url }}

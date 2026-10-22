@@ -7,7 +7,7 @@ e.g. after a "scan now" request; a request made during a run is served right aft
 
 import logging
 import threading
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from datetime import timedelta
 
 from sqlalchemy.orm import Session, sessionmaker
@@ -24,6 +24,9 @@ from cve_detector.sources.base import VulnSource
 
 logger = logging.getLogger(__name__)
 
+# Called with every finished run, e.g. to alert the admin about failures.
+AfterRun = Callable[[Session, ScanRun], None]
+
 
 class Scheduler:
     def __init__(
@@ -35,6 +38,7 @@ class Scheduler:
         retry_after: timedelta = DEFAULT_RETRY_AFTER,
         expiry_warning: timedelta = DEFAULT_EXPIRY_WARNING,
         notify: Notify | None = None,
+        after_run: AfterRun | None = None,
     ) -> None:
         self._session_factory = session_factory
         self._sources = list(sources)
@@ -42,6 +46,7 @@ class Scheduler:
         self._retry_after = retry_after
         self._expiry_warning = expiry_warning
         self._notify = notify
+        self._after_run = after_run
         self._wake = threading.Event()
         self._stopping = threading.Event()
         self._thread: threading.Thread | None = None
@@ -70,13 +75,17 @@ class Scheduler:
         """Run a scan of the due projects; errors are logged, never raised."""
         try:
             with self._session_factory() as session:
-                return run_scan(
+                run = run_scan(
                     session,
                     self._sources,
                     notify=self._notify,
                     retry_after=self._retry_after,
                     expiry_warning=self._expiry_warning,
                 )
+                if run is not None and self._after_run is not None:
+                    self._after_run(session, run)
+                    session.commit()
+                return run
         except Exception:
             logger.exception("scheduled scan crashed")
             return None

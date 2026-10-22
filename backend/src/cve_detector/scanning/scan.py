@@ -32,6 +32,9 @@ logger = logging.getLogger(__name__)
 # for calling ``mark_notified`` once the recipients were told.
 Notify = Callable[[Session, ProjectDigest], None]
 
+# Error of runs left "running" by a previous process.
+INTERRUPTED = "interrupted"
+
 DEFAULT_RETRY_AFTER = timedelta(hours=1)
 DEFAULT_EXPIRY_WARNING = timedelta(days=7)
 
@@ -154,7 +157,7 @@ def fail_interrupted_runs(session: Session) -> int:
     result = session.execute(
         update(ScanRun)
         .where(ScanRun.status == ScanStatus.RUNNING)
-        .values(status=ScanStatus.FAILED, finished_at=utcnow(), error="interrupted")
+        .values(status=ScanStatus.FAILED, finished_at=utcnow(), error=INTERRUPTED)
     )
     session.commit()
     return int(getattr(result, "rowcount", 0) or 0)

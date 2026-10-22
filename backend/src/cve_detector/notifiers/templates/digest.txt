@@ -1,0 +1,41 @@
+{{ project }}: {{ "no new issues" if all_clear else "vulnerability digest" }}
+{% if all_clear %}
+
+{% if still_open %}
+Nothing new since the last report.
+{% else %}
+No open vulnerabilities in this project's dependencies.
+{% endif %}
+{% endif %}
+{% for title, items in [("NEW", new), ("UPDATED", updated), ("RESOLVED", resolved)] if items %}
+
+== {{ title }} ({{ items | length }}) ==
+{% for f in items %}
+
+{% include "_finding.txt" %}
+{% endfor %}
+{% endfor %}
+{% if still_open %}
+
+== STILL OPEN ({{ still_open_counts }}) ==
+
+{% for f in still_open %}
+[{{ f.severity }}] {{ f.advisory_id }} - {{ f.package }} {{ f.version_spec }} ({{ f.status }})
+{% endfor %}
+{% if still_open_more %}
+... and {{ still_open_more }} more
+{% endif %}
+{% endif %}
+{% if expiring %}
+
+== SUPPRESSIONS EXPIRING SOON ==
+
+{% for s in expiring %}
+{{ s.advisory_ref }} ({{ s.scope }}) expires {{ s.expires }}: {{ s.reason }}
+{% endfor %}
+{% endif %}
+
+--
+{{ app }} - {{ generated }}
+Vulnerability data from OSV.dev (https://osv.dev) and the databases it aggregates.
+The absence of findings does not mean the absence of vulnerabilities.

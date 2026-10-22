@@ -13,7 +13,9 @@ from cve_detector.db.enums import (
     DependencyScope,
     DependencySource,
     Ecosystem,
+    EmailDelivery,
     FindingStatus,
+    NotificationKind,
     ScanStatus,
     Severity,
 )
@@ -45,6 +47,9 @@ class Project(TimestampMixin, Base):
     all_clear_policy: Mapped[AllClearPolicy] = mapped_column(
         _enum(AllClearPolicy), default=AllClearPolicy.NEVER
     )
+    email_delivery: Mapped[EmailDelivery] = mapped_column(
+        _enum(EmailDelivery), default=EmailDelivery.SEPARATE
+    )
     # Dependency scopes that are notified; findings of the others are kept but not sent.
     included_scopes: Mapped[list[str]] = mapped_column(
         JSON, default=lambda: [s.value for s in DependencyScope]
@@ -55,6 +60,8 @@ class Project(TimestampMixin, Base):
     # None: due immediately (e.g. a project that was never scanned).
     next_scan_at: Mapped[datetime | None]
     last_scan_error: Mapped[str | None] = mapped_column(Text)
+    # Last time a digest or all-clear report reached at least one recipient.
+    last_notified_at: Mapped[datetime | None]
 
     recipients: Mapped[list["Recipient"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
@@ -189,11 +196,16 @@ class ScanRun(Base):
 
 
 class NotificationLog(Base):
+    """One delivery attempt: a message sent to one or more targets of a channel."""
+
     __tablename__ = "notification_log"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    project_id: Mapped[int] = mapped_column(ForeignKey("project.id", ondelete="CASCADE"))
+    # None for messages not about a project (test emails, admin alerts).
+    project_id: Mapped[int | None] = mapped_column(ForeignKey("project.id", ondelete="CASCADE"))
+    kind: Mapped[NotificationKind] = mapped_column(_enum(NotificationKind))
     channel: Mapped[str] = mapped_column(String(32))
+    targets: Mapped[list[str]] = mapped_column(JSON, default=list)
     sent_at: Mapped[datetime] = mapped_column(default=utcnow)
     content_hash: Mapped[str] = mapped_column(String(64))
     success: Mapped[bool]

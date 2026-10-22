@@ -28,6 +28,8 @@ a usable v1. Tick the boxes as work progresses.
 | F11 | Suppressions | Yes: ignore an advisory (globally or per project) with a reason and an optional expiry date. |
 | F12 | Interface | **Web app**. |
 | F13 | Channels | Email first, behind a pluggable `Notifier` interface (Telegram, Slack, webhook later). |
+| F14 | Email content | English. Digest sections: new, updated (with what changed), resolved, then a compact reminder of findings still open and suppressions expiring soon. All-clear reports are sent as "no new issues" even when old findings are still open. |
+| F15 | Delivery | Per project: one private message per recipient (default) or one message with every recipient in "To". Optional admin address alerted when scans start failing and when they recover. |
 
 ### Technical
 
@@ -94,7 +96,7 @@ a usable v1. Tick the boxes as work progresses.
 - **Finding**: dependency × advisory, status (`affected|potentially_affected|fixed|withdrawn`), active suppression, first seen, last seen, resolved at, last notified state.
 - **Suppression**: advisory id, optional project scope, reason, created by, expires at.
 - **ScanRun**: start/end, status, counters, errors.
-- **NotificationLog**: project, channel, sent at, content hash, result.
+- **NotificationLog**: project (none for test emails and admin alerts), kind (`digest|all_clear|test|admin_alert`), channel, targets, sent at, content hash, result.
 
 ### Key behaviours
 
@@ -233,12 +235,14 @@ cve_detector/
 - [x] Manual "scan now" endpoint (`POST /api/projects/{id}/scan`): queued if a scan is running, never lost.
 
 ### Phase 5 — Notifications
-- [ ] `Notifier` interface: `send(project, digest) -> result`; registry of channels.
-- [ ] Email notifier: SMTP with STARTTLS/SSL, HTML + plain-text multipart, Jinja2 templates, no external resources.
-- [ ] Digest builder grouped by severity, with links to OSV/CVE pages and fixed versions.
-- [ ] "All clear" policy per project.
-- [ ] NotificationLog + "send test email" endpoint.
-- [ ] Tests with a fake SMTP server (e.g. `aiosmtpd`).
+- [x] `Notifier` interface: `send(targets, message, together) -> deliveries`; registry of configured channels.
+- [x] Email notifier: SMTP with STARTTLS/SSL, HTML + plain-text multipart, Jinja2 templates, no external resources; per-project delivery mode (separate or together).
+- [x] Digest builder: new / updated / resolved sorted by severity, links to OSV, aliases, fixed versions, what changed; reminder of still-open findings; expiring suppressions.
+- [x] "All clear" policy per project (`never|every_run|daily|weekly`, counted from the last message sent).
+- [x] Findings count as notified once at least one recipient got the message; failures are logged and retried with the next digest.
+- [x] NotificationLog, `GET /api/notifications/status`, `POST /api/notifications/test`.
+- [x] Admin alerts (`CVED_ADMIN_EMAIL`): one message when scans start failing, one when they recover; restarts are ignored.
+- [x] Tests with a fake SMTP server (`aiosmtpd`).
 
 ### Phase 6 — REST API & auth
 - [ ] CRUD: projects, recipients, dependencies, suppressions.

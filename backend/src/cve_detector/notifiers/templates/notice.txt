@@ -1,0 +1,8 @@
+{{ title }}
+
+{% for p in paragraphs %}
+{{ p }}
+
+{% endfor %}
+--
+{{ app }} - {{ generated }}

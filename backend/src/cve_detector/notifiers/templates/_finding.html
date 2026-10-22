@@ -1,0 +1,19 @@
+{# One finding as a card; expects `f`. #}
+<div style="border-left:4px solid {{ f.color }};padding:8px 12px;margin:0 0 12px;background:#fafafa;">
+<div style="font-size:14px;">
+<span style="display:inline-block;background:{{ f.color }};color:#ffffff;font-weight:600;font-size:12px;padding:1px 6px;border-radius:3px;">{{ f.severity }}{% if f.cvss_score is not none %} {{ f.cvss_score }}{% endif %}</span>
+<a href="{{ f.url }}" style="color:#0b57d0;font-weight:600;">{{ f.advisory_id }}</a>
+{% if f.aliases %}<span style="color:#6b6f76;">{{ f.aliases | join(", ") }}</span>{% endif %}
+</div>
+{% if f.summary %}<div style="margin:6px 0 0;font-size:14px;">{{ f.summary }}</div>{% endif %}
+<div style="margin:6px 0 0;font-size:13px;color:#3d4148;">
+<b>{{ f.package }}</b> <code>{{ f.version_spec }}</code> &middot; {{ f.status }}<br>
+{% if f.resolution %}
+Why: {{ f.resolution }}
+{% else %}
+Fixed in: {{ f.fixed_versions | join(", ") if f.fixed_versions else "no fixed version yet" }}
+{% endif %}
+{% if f.known_exploited %}<br><b style="color:#7a1f1f;">Known to be exploited in the wild</b>{% endif %}
+{% for change in f.changes %}<br>Changed: {{ change }}{% endfor %}
+</div>
+</div>
